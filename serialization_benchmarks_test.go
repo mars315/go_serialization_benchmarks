@@ -19,7 +19,6 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	flatbuffers "github.com/google/flatbuffers/go"
-	"github.com/hprose/hprose-go"
 	hprose2 "github.com/hprose/hprose-golang/io"
 	ikea "github.com/ikkerens/ikeapack"
 	jsoniter "github.com/json-iterator/go"
@@ -77,6 +76,7 @@ func benchMarshal(b *testing.B, s Serializer) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	var serialSize int
+	nowMs := time.Now().UnixNano()
 	for i := 0; i < b.N; i++ {
 		o := data[rand.Intn(len(data))]
 		bytes, err := s.Marshal(o)
@@ -85,7 +85,10 @@ func benchMarshal(b *testing.B, s Serializer) {
 		}
 		serialSize += len(bytes)
 	}
+	diffMs := time.Now().UnixNano() - nowMs
 	b.ReportMetric(float64(serialSize)/float64(b.N), "B/serial")
+	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
+
 }
 
 func cmpTags(a, b map[string]string) bool {
@@ -118,6 +121,7 @@ func benchUnmarshal(b *testing.B, s Serializer) {
 	data := generate()
 	ser := make([][]byte, len(data))
 	var serialSize int
+	nowMs := time.Now().UnixNano()
 	for i, d := range data {
 		o, err := s.Marshal(d)
 		if err != nil {
@@ -127,7 +131,9 @@ func benchUnmarshal(b *testing.B, s Serializer) {
 		serialSize += copy(t, o)
 		ser[i] = t
 	}
+	diffMs := time.Now().UnixNano() - nowMs
 	b.ReportMetric(float64(serialSize)/float64(len(data)), "B/serial")
+	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
 	b.ReportAllocs()
 	b.StartTimer()
 
@@ -672,7 +678,7 @@ func Benchmark_CapNProto2_Unmarshal(b *testing.B) {
 }
 
 // github.com/hprose/hprose-go/io
-
+/*
 type HproseSerializer struct {
 	writer *hprose.Writer
 	reader *hprose.Reader
@@ -733,6 +739,7 @@ func Benchmark_Hprose_Unmarshal(b *testing.B) {
 	writer := hprose.NewWriter(bufw, true)
 	benchUnmarshal(b, &HproseSerializer{writer: writer, reader: reader})
 }
+*/
 
 // github.com/hprose/hprose-golang/io
 
@@ -889,6 +896,7 @@ func Benchmark_Gogoprotobuf_Marshal(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	var serialSize int
+	nowMs := time.Now().UnixNano()
 	for i := 0; i < b.N; i++ {
 		bytes, err := proto.Marshal(data[rand.Intn(len(data))])
 		if err != nil {
@@ -896,7 +904,9 @@ func Benchmark_Gogoprotobuf_Marshal(b *testing.B) {
 		}
 		serialSize += len(bytes)
 	}
+	diffMs := time.Now().UnixNano() - nowMs
 	b.ReportMetric(float64(serialSize)/float64(b.N), "B/serial")
+	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
 }
 
 func Benchmark_Gogoprotobuf_Unmarshal(b *testing.B) {
@@ -904,6 +914,7 @@ func Benchmark_Gogoprotobuf_Unmarshal(b *testing.B) {
 	data := generateGogoProto()
 	ser := make([][]byte, len(data))
 	var serialSize int
+	nowMs := time.Now().UnixNano()
 	for i, d := range data {
 		var err error
 		ser[i], err = proto.Marshal(d)
@@ -912,7 +923,9 @@ func Benchmark_Gogoprotobuf_Unmarshal(b *testing.B) {
 		}
 		serialSize += len(ser[i])
 	}
+	diffMs := time.Now().UnixNano() - nowMs
 	b.ReportMetric(float64(serialSize)/float64(len(data)), "B/serial")
+	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
 	b.ReportAllocs()
 	b.StartTimer()
 
