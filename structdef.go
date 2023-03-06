@@ -1,6 +1,7 @@
 package goserbench
 
 import (
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"time"
 )
 
@@ -12,6 +13,11 @@ type A struct {
 	Siblings int
 	Spouse   bool
 	Money    float64
+}
+
+func (z *A) ProtoReflect() protoreflect.Message {
+	//TODO implement me
+	panic("implement me")
 }
 
 type NoTimeA struct {

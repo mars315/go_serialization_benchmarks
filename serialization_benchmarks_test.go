@@ -31,8 +31,8 @@ import (
 	"github.com/ugorji/go/codec"
 	fastjson "github.com/valyala/fastjson"
 	vmihailenco "github.com/vmihailenco/msgpack/v5"
-	"go.dedis.ch/protobuf"
 	mongobson "go.mongodb.org/mongo-driver/bson"
+	proto2 "google.golang.org/protobuf/proto"
 	"gopkg.in/mgo.v2/bson"
 	capnp "zombiezen.com/go/capnproto2"
 )
@@ -789,28 +789,33 @@ func Benchmark_Hprose2_Unmarshal(b *testing.B) {
 	benchUnmarshal(b, &Hprose2Serializer{writer: writer, reader: reader})
 }
 
-// go.dedis.ch/protobuf
+// google.golang.org/protobuf/
 
-type ProtobufSerializer struct{}
-
-func (m ProtobufSerializer) Marshal(o interface{}) ([]byte, error) {
-	return protobuf.Encode(o)
-}
-
-func (m ProtobufSerializer) Unmarshal(d []byte, o interface{}) error {
-	return protobuf.Decode(d, o)
+func generateGoogleProto() []*GoogleProtoBufA {
+	a := make([]*GoogleProtoBufA, 0, 1000)
+	for i := 0; i < 1000; i++ {
+		a = append(a, &GoogleProtoBufA{
+			Name:     randString(16),
+			BirthDay: time.Now().UnixNano(),
+			Phone:    randString(10),
+			Siblings: rand.Int31n(5),
+			Spouse:   rand.Intn(2) == 1,
+			Money:    rand.Float64(),
+		})
+	}
+	return a
 }
 
 func Benchmark_Protobuf_Marshal(b *testing.B) {
 	b.Helper()
-	data := generate()
+	data := generateGoogleProto()
 	b.ReportAllocs()
 	b.ResetTimer()
 	var serialSize int
 	nowMs := time.Now().UnixNano()
 	for i := 0; i < b.N; i++ {
 		o := data[rand.Intn(len(data))]
-		bytes, err := protobuf.Encode(o)
+		bytes, err := proto2.Marshal(o)
 		if err != nil {
 			b.Fatalf("marshal error %s for %#v", err, o)
 		}
@@ -824,12 +829,12 @@ func Benchmark_Protobuf_Marshal(b *testing.B) {
 func Benchmark_Protobuf_Unmarshal(b *testing.B) {
 	b.Helper()
 	b.StopTimer()
-	data := generate()
+	data := generateGoogleProto()
 	ser := make([][]byte, len(data))
 	var serialSize int
 
 	for i, d := range data {
-		o, err := protobuf.Encode(d)
+		o, err := proto2.Marshal(d)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -848,7 +853,7 @@ func Benchmark_Protobuf_Unmarshal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		n := rand.Intn(len(ser))
 		o := &A{}
-		err := protobuf.Decode(ser[n], o)
+		err := proto2.Unmarshal(ser[n], o)
 		if err != nil {
 			b.Fatalf("unmarshal error %s for %#x / %q", err, ser[n], ser[n])
 		}
