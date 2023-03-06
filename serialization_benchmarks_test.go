@@ -852,7 +852,7 @@ func Benchmark_Protobuf_Unmarshal(b *testing.B) {
 	nowMs := time.Now().UnixNano()
 	for i := 0; i < b.N; i++ {
 		n := rand.Intn(len(ser))
-		o := &A{}
+		o := &GoogleProtoBufA{}
 		err := proto2.Unmarshal(ser[n], o)
 		if err != nil {
 			b.Fatalf("unmarshal error %s for %#x / %q", err, ser[n], ser[n])
