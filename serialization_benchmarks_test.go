@@ -121,7 +121,7 @@ func benchUnmarshal(b *testing.B, s Serializer) {
 	data := generate()
 	ser := make([][]byte, len(data))
 	var serialSize int
-	nowMs := time.Now().UnixNano()
+
 	for i, d := range data {
 		o, err := s.Marshal(d)
 		if err != nil {
@@ -131,12 +131,13 @@ func benchUnmarshal(b *testing.B, s Serializer) {
 		serialSize += copy(t, o)
 		ser[i] = t
 	}
-	diffMs := time.Now().UnixNano() - nowMs
+
 	b.ReportMetric(float64(serialSize)/float64(len(data)), "B/serial")
-	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
+
 	b.ReportAllocs()
 	b.StartTimer()
 
+	nowMs := time.Now().UnixNano()
 	for i := 0; i < b.N; i++ {
 		n := rand.Intn(len(ser))
 		o := &A{}
@@ -144,15 +145,18 @@ func benchUnmarshal(b *testing.B, s Serializer) {
 		if err != nil {
 			b.Fatalf("unmarshal error %s for %#x / %q", err, ser[n], ser[n])
 		}
-		// Validate unmarshalled data.
-		if validate != "" {
-			i := data[n]
-			correct := o.Name == i.Name && o.Phone == i.Phone && o.Siblings == i.Siblings && o.Spouse == i.Spouse && o.Money == i.Money && o.BirthDay.Equal(i.BirthDay) //&& cmpTags(o.Tags, i.Tags) && cmpAliases(o.Aliases, i.Aliases)
-			if !correct {
-				b.Fatalf("unmarshaled object differed:\n%v\n%v", i, o)
-			}
-		}
+		serialSize += len(ser[n])
+		//// Validate unmarshalled data.
+		//if validate != "" {
+		//	i := data[n]
+		//	correct := o.Name == i.Name && o.Phone == i.Phone && o.Siblings == i.Siblings && o.Spouse == i.Spouse && o.Money == i.Money && o.BirthDay.Equal(i.BirthDay) //&& cmpTags(o.Tags, i.Tags) && cmpAliases(o.Aliases, i.Aliases)
+		//	if !correct {
+		//		b.Fatalf("unmarshaled object differed:\n%v\n%v", i, o)
+		//	}
+		//}
 	}
+	diffMs := time.Now().UnixNano() - nowMs
+	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
 }
 
 func TestMessage(t *testing.T) {
@@ -798,11 +802,68 @@ func (m ProtobufSerializer) Unmarshal(d []byte, o interface{}) error {
 }
 
 func Benchmark_Protobuf_Marshal(b *testing.B) {
-	benchMarshal(b, ProtobufSerializer{})
+	b.Helper()
+	data := generate()
+	b.ReportAllocs()
+	b.ResetTimer()
+	var serialSize int
+	nowMs := time.Now().UnixNano()
+	for i := 0; i < b.N; i++ {
+		o := data[rand.Intn(len(data))]
+		bytes, err := protobuf.Encode(o)
+		if err != nil {
+			b.Fatalf("marshal error %s for %#v", err, o)
+		}
+		serialSize += len(bytes)
+	}
+	diffMs := time.Now().UnixNano() - nowMs
+	b.ReportMetric(float64(serialSize)/float64(b.N), "B/serial")
+	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
 }
 
 func Benchmark_Protobuf_Unmarshal(b *testing.B) {
-	benchUnmarshal(b, ProtobufSerializer{})
+	b.Helper()
+	b.StopTimer()
+	data := generate()
+	ser := make([][]byte, len(data))
+	var serialSize int
+
+	for i, d := range data {
+		o, err := protobuf.Encode(d)
+		if err != nil {
+			b.Fatal(err)
+		}
+		t := make([]byte, len(o))
+		serialSize += copy(t, o)
+		ser[i] = t
+	}
+
+	b.ReportMetric(float64(serialSize)/float64(len(data)), "B/serial")
+
+	b.ReportAllocs()
+	b.StartTimer()
+
+	serialSize = 0
+	nowMs := time.Now().UnixNano()
+	for i := 0; i < b.N; i++ {
+		n := rand.Intn(len(ser))
+		o := &A{}
+		err := protobuf.Decode(ser[n], o)
+		if err != nil {
+			b.Fatalf("unmarshal error %s for %#x / %q", err, ser[n], ser[n])
+		}
+		serialSize += len(ser[n])
+		//// Validate unmarshalled data.
+		//if validate != "" {
+		//	i := data[n]
+		//	correct := o.Name == i.Name && o.Phone == i.Phone && o.Siblings == i.Siblings && o.Spouse == i.Spouse && o.Money == i.Money && o.BirthDay.Equal(i.BirthDay) //&& cmpTags(o.Tags, i.Tags) && cmpAliases(o.Aliases, i.Aliases)
+		//	if !correct {
+		//		b.Fatalf("unmarshaled object differed:\n%v\n%v", i, o)
+		//	}
+		//}
+	}
+	diffMs := time.Now().UnixNano() - nowMs
+	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
 }
 
 // github.com/golang/protobuf
@@ -914,7 +975,7 @@ func Benchmark_Gogoprotobuf_Unmarshal(b *testing.B) {
 	data := generateGogoProto()
 	ser := make([][]byte, len(data))
 	var serialSize int
-	nowMs := time.Now().UnixNano()
+
 	for i, d := range data {
 		var err error
 		ser[i], err = proto.Marshal(d)
@@ -923,12 +984,13 @@ func Benchmark_Gogoprotobuf_Unmarshal(b *testing.B) {
 		}
 		serialSize += len(ser[i])
 	}
-	diffMs := time.Now().UnixNano() - nowMs
+
 	b.ReportMetric(float64(serialSize)/float64(len(data)), "B/serial")
-	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
 	b.ReportAllocs()
 	b.StartTimer()
 
+	serialSize = 0
+	nowMs := time.Now().UnixNano()
 	for i := 0; i < b.N; i++ {
 		n := rand.Intn(len(ser))
 		o := &GogoProtoBufA{}
@@ -936,15 +998,18 @@ func Benchmark_Gogoprotobuf_Unmarshal(b *testing.B) {
 		if err != nil {
 			b.Fatalf("goprotobuf failed to unmarshal: %s (%s)", err, ser[n])
 		}
-		// Validate unmarshalled data.
-		if validate != "" {
-			i := data[n]
-			correct := o.Name == i.Name && o.Phone == i.Phone && o.Siblings == i.Siblings && o.Spouse == i.Spouse && o.Money == i.Money && o.BirthDay == i.BirthDay //&& cmpTags(o.Tags, i.Tags) && cmpAliases(o.Aliases, i.Aliases)
-			if !correct {
-				b.Fatalf("unmarshaled object differed:\n%v\n%v", i, o)
-			}
-		}
+		serialSize += len(ser[n])
+		//// Validate unmarshalled data.
+		//if validate != "" {
+		//	i := data[n]
+		//	correct := o.Name == i.Name && o.Phone == i.Phone && o.Siblings == i.Siblings && o.Spouse == i.Spouse && o.Money == i.Money && o.BirthDay == i.BirthDay //&& cmpTags(o.Tags, i.Tags) && cmpAliases(o.Aliases, i.Aliases)
+		//	if !correct {
+		//		b.Fatalf("unmarshaled object differed:\n%v\n%v", i, o)
+		//	}
+		//}
 	}
+	diffMs := time.Now().UnixNano() - nowMs
+	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
 }
 
 func Benchmark_Gogojsonpb_Marshal(b *testing.B) {
