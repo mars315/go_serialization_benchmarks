@@ -806,7 +806,7 @@ func generateGoogleProto() []*GoogleProtoBufA {
 	return a
 }
 
-func Benchmark_Protobuf_Marshal(b *testing.B) {
+func Benchmark_Protobuf_Google_Marshal(b *testing.B) {
 	b.Helper()
 	data := generateGoogleProto()
 	b.ReportAllocs()
@@ -826,7 +826,7 @@ func Benchmark_Protobuf_Marshal(b *testing.B) {
 	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
 }
 
-func Benchmark_Protobuf_Unmarshal(b *testing.B) {
+func Benchmark_Protobuf_Google_Unmarshal(b *testing.B) {
 	b.Helper()
 	b.StopTimer()
 	data := generateGoogleProto()
@@ -957,7 +957,7 @@ func generateGogoProto() []*GogoProtoBufA {
 	return a
 }
 
-func Benchmark_Gogoprotobuf_Marshal(b *testing.B) {
+func Benchmark_Protobuf_GOGO_Marshal(b *testing.B) {
 	data := generateGogoProto()
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -975,7 +975,7 @@ func Benchmark_Gogoprotobuf_Marshal(b *testing.B) {
 	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
 }
 
-func Benchmark_Gogoprotobuf_Unmarshal(b *testing.B) {
+func Benchmark_Protobuf_GOGO_Unmarshal(b *testing.B) {
 	b.StopTimer()
 	data := generateGogoProto()
 	ser := make([][]byte, len(data))
