@@ -806,6 +806,23 @@ func generateGoogleProto() []*GoogleProtoBufA {
 	return a
 }
 
+func Benchmark_Protobuf_Google_Size(b *testing.B) {
+	b.Helper()
+	data := generateGoogleProto()
+	b.ReportAllocs()
+	b.ResetTimer()
+	var serialSize int
+	nowMs := time.Now().UnixNano()
+	for i := 0; i < b.N; i++ {
+		o := data[rand.Intn(len(data))]
+		protoSize := proto2.Size(o)
+		serialSize += protoSize
+	}
+	diffMs := time.Now().UnixNano() - nowMs
+	b.ReportMetric(float64(serialSize)/float64(b.N), "B/serial")
+	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
+}
+
 func Benchmark_Protobuf_Google_Marshal(b *testing.B) {
 	b.Helper()
 	data := generateGoogleProto()
@@ -815,8 +832,9 @@ func Benchmark_Protobuf_Google_Marshal(b *testing.B) {
 	nowMs := time.Now().UnixNano()
 	for i := 0; i < b.N; i++ {
 		o := data[rand.Intn(len(data))]
+		protoSize := proto2.Size(o)
 		bytes, err := proto2.Marshal(o)
-		if err != nil {
+		if err != nil || protoSize != len(bytes) {
 			b.Fatalf("marshal error %s for %#v", err, o)
 		}
 		serialSize += len(bytes)
@@ -955,6 +973,21 @@ func generateGogoProto() []*GogoProtoBufA {
 		})
 	}
 	return a
+}
+
+func Benchmark_Protobuf_GOGO_Size(b *testing.B) {
+	data := generateGogoProto()
+	b.ReportAllocs()
+	b.ResetTimer()
+	var serialSize int
+	nowMs := time.Now().UnixNano()
+	for i := 0; i < b.N; i++ {
+		protoSize := proto.Size(data[rand.Intn(len(data))])
+		serialSize += protoSize
+	}
+	diffMs := time.Now().UnixNano() - nowMs
+	b.ReportMetric(float64(serialSize)/float64(b.N), "B/serial")
+	b.ReportMetric(float64(serialSize)/float64(diffMs)*float64(time.Second)/1024/1024, "MB/Seconds")
 }
 
 func Benchmark_Protobuf_GOGO_Marshal(b *testing.B) {
